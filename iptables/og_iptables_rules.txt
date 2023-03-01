@@ -1,0 +1,49 @@
+
+#LOGISTICS
+#creating custom chain in mangle table (easier management)
+iptables -t mangle -N ShieldNet
+#linking custom chain to default prerouting chain of mangle table
+iptables -t mangle -A PREROUTING -j ShieldNet
+
+#1. block invalid packets
+#blocking all packets not syn and not belonging to tcp state established connection
+iptables -t mangle -A ShieldNet -m conntrack --ctstate INVALID -j DROP
+
+#2. block new packets that are not syn
+#blocking all packets that are new (not belonging 
+#to tcp established connection) and don’t use the SYN flag (similar to the previous
+#but catches some other rarer cases)
+iptables -t mangle -A ShieldNet -p tcp ! --syn -m conntrack --ctstate NEW -j DROP
+
+#3. block uncommon mss values
+#blocks new packets (only SYN packets can be new packets as 
+#per the two previous rules) that use a tcp mss value that is not common
+#useful against SYN floods
+iptables -t mangle -A ShieldNet -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -j DROP
+
+#4. block packets with bogus tcp flags
+#blocks packets that use tcp flags that legitimate packets wouldn’t use
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags FIN,SYN FIN,SYN -j DROP
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags SYN,RST SYN,RST -j DROP
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags FIN,RST FIN,RST -j DROP
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags FIN,ACK FIN -j DROP
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags ACK,URG URG -j DROP
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags ACK,PSH PSH -j DROP
+iptables -t mangle -A ShieldNet -p tcp --tcp-flags ALL NONE -j DROP
+
+#5. block packets from private subnets (spoofing)
+#block spoofed packets originating from private (local) subnets
+#on public network interface you usually don’t want to receive packets from private source IPs
+#assuming that your loopback interface uses the 127.0.0.0/8 IP space
+iptables -t mangle -A ShieldNet -s 224.0.0.0/3 -j DROP 
+iptables -t mangle -A ShieldNet -s 169.254.0.0/16 -j DROP 
+iptables -t mangle -A ShieldNet -s 172.16.0.0/12 -j DROP 
+iptables -t mangle -A ShieldNet -s 192.0.2.0/24 -j DROP 
+iptables -t mangle -A ShieldNet -s 192.168.0.0/16 -j DROP 
+iptables -t mangle -A ShieldNet -s 10.0.0.0/8 -j DROP 
+iptables -t mangle -A ShieldNet -s 0.0.0.0/8 -j DROP 
+iptables -t mangle -A ShieldNet -s 240.0.0.0/5 -j DROP 
+iptables -t mangle -A ShieldNet -s 127.0.0.0/8 ! -i lo -j DROP
+
+#these rules alone already block many TCP-based DDoS attacks at very high packet rates
+#with ad hoc kernel settings and rules, able to filter ACK and SYN-ACK attacks at line rate

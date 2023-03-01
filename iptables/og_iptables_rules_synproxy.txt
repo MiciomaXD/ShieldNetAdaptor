@@ -1,0 +1,24 @@
+#required Linux kernel version 3.12+ and iptables 1.4.21+
+#disables connection limiting rule
+#synproxy checks if sender of syn actually establishes tcp connection or does nothing after
+#if nothing, discards the packet with minimal performance impact (no problems with
+#multiple millions of pks/s)
+#useful against sophisticated syn flood attacks
+
+#LOGISTICS
+#creating custom chain in raw table (easier management)
+iptables -t raw -N ShieldNet
+#linking custom chain to default prerouting chain of raw table
+iptables -t raw -A PREROUTING -j ShieldNet
+
+#excludes syn packets from connection tracking, otherwise too many resources wasted (target CT is conntrack)
+iptables -t raw -A ShieldNet -p tcp -m tcp --syn -j CT --notrack
+
+#matches the syn packets (untracked as per previous rule) and ack packets (invalid as per 
+#nf_conntrack_tcp_loose=0 kernel settings) and forwards them to the synproxy target, which 
+#then verifies the syncookies and establishes 
+#the full TCP connections
+iptables -t filter -A ShieldNet -p tcp -m tcp -m conntrack --ctstate INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 
+
+#drops every packet that the previous rule didn't catch
+iptables -t filter -A ShieldNet -m conntrack --ctstate INVALID -j DROP

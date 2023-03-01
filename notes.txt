@@ -1,0 +1,54 @@
+taken edited, explained, refined and tweaked kerner settings and iptable stuff
+
+cd /usr/lib/x86_64-linux-gnu/
+ln -s -f libc.a liblibc.a
+
+if error with lillibc.a
+
+
+pytorch
+numpy
+pandas
+
+
+
+strange packet
+###[ Ethernet ]### 
+  dst       = 00:50:56:45:5f:9d
+  src       = 28:99:3a:4d:23:91
+  type      = IPv4
+###[ IP ]###
+     version   = 4
+     ihl       = 5
+     tos       = 0x0
+     len       = 221
+     id        = 11340
+     flags     = DF
+     frag      = 0
+     ttl       = 57
+     proto     = udp
+     chksum    = 0x5852
+     src       = 107.189.1.113
+     dst       = 95.111.239.212
+     \options   \
+###[ UDP ]###
+        sport     = 44336
+        dport     = ntp
+        len       = 201
+        chksum    = 0x7a14
+###[ Private (mode 7) ]###
+           response  = 0
+           more      = 0
+           version   = 2
+           mode      = 7
+           auth      = 0
+           seq       = 0
+           implementation= XNTPD
+           request_code= REQ_MON_GETLIST_1
+           err       = no error
+           nb_items  = 0
+           mbz       = 0
+           data_item_size= 0
+           \req_data  \
+###[ Raw ]###
+              load      = '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
