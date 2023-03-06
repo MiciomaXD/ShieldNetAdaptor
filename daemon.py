@@ -14,7 +14,7 @@ import errno
 logger = None
 blackboard = None
 
-def main_second_layer():
+def __main_second_layer():
     """Implements a second layer defence in a classic way, using iptables calls; this function
     offers a basic protection"""
     logger.log('Implementing second layer MAIN defence...', Level.INFO, APP_NAME_CORE)
@@ -30,7 +30,7 @@ def main_second_layer():
     else:
         logger.log('Classic iptables rules file not found, cannot implement second layer MAIN defence', Level.WARNING, APP_NAME_CORE)
 
-def extended_second_layer():
+def __extended_second_layer():
     """Implements a second layer defence in a classic way, using iptables calls; this function
     offers optional defence capabilities"""
     logger.log('Implementing second layer EXTENDED defence...', Level.INFO, APP_NAME_CORE)
@@ -46,7 +46,7 @@ def extended_second_layer():
     else:
         logger.log('Classic iptables rules file not found, cannot implement second layer EXTENDED defence', Level.WARNING, APP_NAME_CORE)    
 
-def synproxy_second_layer():
+def __synproxy_second_layer():
     """Implements a second layer defence in a classic way, using iptables calls; this function
     offers optional defence capabilities using iptables' SYNPROXY: READ COMMENTS IN og_iptables_rules_synproxy BEFORE USE"""
     logger.log('Implementing second layer SYNPROXY defence...', Level.INFO, APP_NAME_CORE)
@@ -70,15 +70,15 @@ def implement_classic_shield(skip: bool, skip_extended: bool, skip_syproxy: bool
         return
 
     logger.log('Implementing classical fallback defense...', Level.INFO, APP_NAME_CORE)
-    main_second_layer()
+    __main_second_layer()
 
     if not skip_extended:
-        extended_second_layer()
+        __extended_second_layer()
     else:
         logger.log('Skipping EXTENDED second layer defence...', Level.INFO, APP_NAME_CORE)
     
     if not skip_syproxy:
-        synproxy_second_layer()
+        __synproxy_second_layer()
     else:
         logger.log('Skipping SYNPROXY second layer defence...', Level.INFO, APP_NAME_CORE)
     
@@ -131,14 +131,14 @@ def main():
 
     stop_event = Event()
     logger.log('Spawning metrics thread...', Level.INFO, APP_NAME_CORE)
-    metrics_th=MetricsThreadContent(blackbox=blackboard, stop_e=[stop_event])
+    metrics_th=MetricsThreadContent(blackboard=blackboard, stop_e=stop_event)
     blackboard.subprocesses.append(metrics_th) #get reference
     metrics_th.start()
     logger.log('Metrics thread up and running', Level.INFO, APP_NAME_CORE)
 
     logger.log('Spawning neural thread...', Level.INFO, APP_NAME_CORE)
     create_jail_chains()
-    neural_th=NeuralThreadContent(blackbox=blackboard, args=[stop_event])
+    neural_th=NeuralThreadContent(blackboard=blackboard, args=stop_event)
     blackboard.subprocesses.append(neural_th) #get reference
     neural_th.start()
     logger.log('Neural thread ready and on stand-by', Level.INFO, APP_NAME_CORE)
@@ -174,9 +174,11 @@ def main():
                     write_to_pipe(NAMED_PIPE_TO_EXT, message)
 
                 elif refined_line == Command.SITUATION.value:
-                    print('')
+                    message = blackboard.jail_table.to_string()
+                    write_to_pipe(NAMED_PIPE_TO_EXT, message)
                 elif refined_line == Command.START.value:
-                    print('')
+                    message = 'SN Ada, SN Classic, SN Neural are already running!'
+                    write_to_pipe(NAMED_PIPE_TO_EXT, message)
                 elif refined_line == Command.STOP.value:
                     logger.log('Stopping procedure of ShieldNet invoked', Level.INFO, APP_NAME_CORE)
 

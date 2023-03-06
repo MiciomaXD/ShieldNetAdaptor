@@ -1,4 +1,4 @@
-[01-03-2023 11:41:30][ERROR]: [ShieldNet v1.0 - core_metrics] Unable to process packet:
+[02-03-2023 12:25:22][ERROR]: [ShieldNet v1.0 - core_metrics] Unable to process packet:
 ###[ Ethernet ]### 
   dst       = 00:50:56:45:5f:9d
   src       = 28:99:3a:4d:23:91

@@ -28,11 +28,11 @@ def update_sigma(new_value: float64, old_sigma: float64, mean: float64, n: int) 
     """Returns updated stddev using population variance"""
     return sqrt(n / (n+1) * old_sigma**2 + 1 / n * (new_value - mean)**2)
 
-def update_flow_duration(tms_first_pkt: datetime) -> timedelta:
-    return dt.now() - tms_first_pkt
+def update_flow_duration(tms_first_pkt: datetime) -> float64:
+    """Returns updated flow duration in musec"""
+    return (dt.now() - tms_first_pkt).total_seconds()*1e6
 
 def update_fwd_pkt_len_max(old_value: int, new_value: int, direction: PacketDirection) -> int:
-
     if direction != PacketDirection.FWD:
         return old_value
     
@@ -44,7 +44,7 @@ def update_fwd_pkt_len_max(old_value: int, new_value: int, direction: PacketDire
     return max(new_value, old_value)
     
 def update_fwd_pkt_len_min(old_value: int, new_value: int, direction: PacketDirection) -> int:
-
+    
     if direction != PacketDirection.FWD:
         return old_value
     
@@ -90,17 +90,19 @@ def update_bwd_pkt_len_mean(old_value: float64, new_value: int, n: int, directio
     #direction is bwd
     return update_mu(new_value, old_value, n)
 
-def update_fwd_IAT_tot(old_value: timedelta, seen_now: datetime, last_seen: datetime, direction: PacketDirection) -> datetime:
+def update_fwd_IAT_tot(old_value: float64, seen_now: datetime, last_seen: datetime, direction: PacketDirection) -> float64:
 
     if direction != PacketDirection.FWD:
         return old_value
     
     #direction is fwd
-    if old_value == nan:
-        return seen_now - last_seen
+    #if old_value == nan:
+    #    return seen_now - last_seen
     
     #old is not nan
-    return old_value + (seen_now - last_seen)
+    #return old_value + (seen_now - last_seen)
+
+    return old_value + (seen_now - last_seen).total_seconds()*1e6
 
 def update_pkt_len_min(old_value: int, new_value: int) -> int:
 

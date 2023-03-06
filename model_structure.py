@@ -3,6 +3,7 @@ from very_simple_logger import *
 from config import *
 import pickle
 from sklearn.preprocessing import StandardScaler
+import numpy as np
 
 class Net(torch.nn.Module):
     """Model structure of ShieldNet"""
@@ -37,11 +38,12 @@ model.apply(init_weights)
 class ShieldNet():
     """Wrapper of model pytorch class"""
     def __init__(self, model_path: str, scaler_path: str, logger: VerySimpleLogger):
+        self.logger = logger
         self.model = self.__load_momodel(model_path)
         self.scaler = self.__load_scaler(scaler_path)
-        self.logger = logger
 
     def __load_scaler(self, path) -> StandardScaler:
+        """Loads the scaler for input from pickle"""
         try:
             with open(path, 'rb') as file:
                 return pickle.load(file)
@@ -51,9 +53,10 @@ class ShieldNet():
             raise
 
     def __load_momodel(self, path) -> Net:
+        """Loads a saved DL model to cpu and sets it in eval mode"""
         try:
             model = Net()
-            model.load_state_dict(torch.load(path))
+            model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
             model.eval()
 
             return model
@@ -62,16 +65,18 @@ class ShieldNet():
             self.logger.log(e.with_traceback(), Level.ERROR, APP_NAME_CORE + '_neural')
             raise
 
-    def eval_input(self, input: torch.Tensor):
+    def eval_input(self, input: np.ndarray):
         """Pass a tensor to evaluate in the loaded model. Returns 
-        the class index and the relative probability"""
+        the class index and the relative probability for which
+        the sample was classified in said class e.g
+        I am X% sure this flow is benign"""
         with torch.no_grad():
-            logits = self.model(self.scaler.transform(input))
+            logits = self.model(torch.tensor(self.scaler.transform(input), dtype=torch.float32))
             true_logits = torch.exp(logits)
             prediction = torch.argmax(logits, dim=1)
 
             probability = torch.zeros(true_logits.shape[0], dtype=torch.float32)
-            for i, p, l in enumerate(zip(prediction, true_logits)):
+            for i, (p, l) in enumerate(zip(prediction, true_logits)):
                 probability[i] = l[p]
 
             return prediction, probability

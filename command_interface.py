@@ -25,6 +25,7 @@ def main():
     except Exception as e:
         logger.log(e.with_traceback(), Level.ERROR, APP_NAME_INTERACTIVE)
         raise
+    
     print(res)
     
 if __name__ == "__main__":

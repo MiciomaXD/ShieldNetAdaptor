@@ -9,20 +9,21 @@ from numpy import nan
 from datetime import datetime, timedelta
 import metrics_computation as mc
 from config import APP_NAME_CORE
+import pickle
 
-"""def main():
+def main():
     logger = set_up_logger('./log.txt')
     #logger.reset()
     stop_event = Event()
-    go=MetricsThreadContent(blackbox=BlackBoardStorage(logger = logger), stop_e = stop_event)
+    go=MetricsThreadContent(blackboard=BlackBoardStorage(logger = logger), stop_e = stop_event)
     go.start()
-    go.join()"""
+    go.join()
 
 class MetricsThreadContent(Thread):
     """Runnable to be sure the MetricsRegister thread can work flawlessly and self-contained, just
     pass a logger instance and the shared blackboard memorizer instance"""
-    def __init__(self, blackbox: BlackBoardStorage, stop_e: Event):
-        self.blackbox=blackbox
+    def __init__(self, blackboard: BlackBoardStorage, stop_e: Event):
+        self.blackboard=blackboard
         super().__init__(group=None, target=self.listen, name='MetricsRegister', 
                          args=(stop_e,), kwargs=None, daemon=True) #daemon true because stop 
         #when main stops (supporting thread), but we manage graceful stop so technically not needed
@@ -41,39 +42,42 @@ class MetricsThreadContent(Thread):
                 if stop_event.is_set(): #stop event is telling me to shutdown
                     return
 
-                if not self.is_valid(packet): #packet is not TCP or UDP
+                if not self.__is_valid(packet): #packet is not TCP or UDP
                     continue
                 
                 #packet.show()
-                flow_dict, layers = self.parse_flow(packet)
+                flow_dict, layers = self.__parse_flow(packet)
 
-                flow_key = self.get_packet_flow_key(flow_dict, PacketDirection.FWD)
-                exists, idx = self.flow_exists(flow_key)
+                flow_key = self.__get_packet_flow_key(flow_dict, PacketDirection.FWD)
+                exists, idx = self.__flow_exists(flow_key)
                 if exists:
-                    self.update_metrics(flow_key, idx, packet, layers, PacketDirection.FWD)
+                    self.__update_metrics(flow_key, idx, packet, layers, PacketDirection.FWD)
                     continue #processed packet, go to next packet
                 
                 #fwd key not found if I am here
                 #if there is no forward flow with that key, there might be one of it in reverse
-                flow_key = self.get_packet_flow_key(flow_dict, PacketDirection.BWD)
-                exists, idx = self.flow_exists(flow_key)
+                flow_key = self.__get_packet_flow_key(flow_dict, PacketDirection.BWD)
+                exists, idx = self.__flow_exists(flow_key)
                 if exists:
-                    self.update_metrics(flow_key, idx, packet, layers, PacketDirection.BWD)
+                    self.__update_metrics(flow_key, idx, packet, layers, PacketDirection.BWD)
                     continue
 
                 #also bwd key not found if I am here
                 #this is a packet of a brand new flow
                 #by default direction of first packet is FWD
-                self.insert_new_flow(flow_key, flow_dict, packet, layers)
+                self.__insert_new_flow(flow_key, flow_dict, packet, layers)
             except Exception as e:
                 self.blackboard.logger.log('Unable to process packet:\n' + packet.show(dump=True) + 'Exception was:' + str(e), Level.ERROR, APP_NAME_CORE + '_metrics')
         
-        self.blackbox.jail_table.to_csv(".\\test\\test_generated.csv", header=True, index=False, mode='w') #! TEST correctness
+        self.blackboard.jail_table.to_csv(".\\test\\test_generated.csv", header=True, index=False, mode='w') #! TEST correctness
+        with open('.\\test\\test_generated.pkl', 'wb') as handle: #! TEST correctness
+            pickle.dump(self.blackboard.jail_table, handle) #! TEST correctness
 
-    def is_valid(self, p: sc.Packet):
+    def __is_valid(self, p: sc.Packet):
+        """Excludes non TCP or UDP packets (non TCP/UDP can be handled vanilla with iptables)"""
         return 'IP' in p and (p.proto == 17 or p.proto == 6)
 
-    def get_packet_flow_key(self, flow_dict: dict, direction: PacketDirection) -> str:
+    def __get_packet_flow_key(self, flow_dict: dict, direction: PacketDirection) -> str:
         """Returs the key that identifies the flow taking care of the direction"""
         if direction == PacketDirection.FWD:
             return flow_dict['Source_IP'] + '-' + \
@@ -89,7 +93,7 @@ class MetricsThreadContent(Thread):
         str(flow_dict['Source_Port']) + '-' + \
         str(flow_dict['Protocol'])
 
-    def get_packet_layers(self, p: sc.Packet):
+    def __get_packet_layers(self, p: sc.Packet):
         """Saves the layers of the flow (e.g. Ether/IP/TCP) as a generator,
         remember to call list(this function) to get something manageable"""
         yield p.name
@@ -97,11 +101,11 @@ class MetricsThreadContent(Thread):
             p = p.payload
             yield p.name
 
-    def parse_flow(self, p: sc.Packet) -> dict:
+    def __parse_flow(self, p: sc.Packet) -> dict:
         """Returns a dictionary containing five unique labels that determine flow id; 
         also returns already extracted layers of the packet
         (useless to repeat work later to calculate metrics)"""
-        layers = list(self.get_packet_layers(p))
+        layers = list(self.__get_packet_layers(p))
 
         #ignore Ether as first layer...(indexes significant from 1)
 
@@ -109,8 +113,7 @@ class MetricsThreadContent(Thread):
             src_ip = p[layers[1]].psrc                
             prot = layers[1]                                
             src_port, dst_port, dst_ip = None                              
-        else:
-            #print(p[layers[1]]) 
+        else: 
             src_ip = p[layers[1]].src                            
             dst_ip = p[layers[1]].dst
             prot = p[layers[1]].proto
@@ -124,47 +127,40 @@ class MetricsThreadContent(Thread):
                         'Protocol' : prot}
         return flow_parameters, layers
 
-    def flow_exists(self, flow_str: str) -> tuple[bool, int]:
+    def __flow_exists(self, flow_str: str) -> tuple[bool, int]:
         """Given a flow string identifier, searches it in the register aka jail-table;
         returns a couple <present[T|F],row:int> in which the row index is meaningful only
         if present is True obv"""
-        idx = self.blackbox.jail_table.index[self.blackbox.jail_table['FLOW'] == flow_str].tolist()
+        idx = self.blackboard.jail_table.index[self.blackboard.jail_table['FLOW'] == flow_str].tolist()
         if not len(idx):
             return False, -1
         
         return True, idx[0]
 
-    def remove_old(self):
-        #also free iptables
-        pass
-
-    def can_classify(self):
-        pass
-
-    def insert_new_flow(self, flow_str: str, flow_dict: dict, p: sc.Packet, layers: None | list):
+    def __insert_new_flow(self, flow_str: str, flow_dict: dict, p: sc.Packet, layers: None | list):
         """If we call this, we know that a packet not belonging to previously seen flows has arrived; so
         insert a new row in the register with right metrics parameters"""
         if layers == None:
-            layers = list(self.get_packet_layers(p))
+            layers = list(self.__get_packet_layers(p))
 
         tcp_flags = mc.get_tcp_layer_flags_of_packet(p, layers)
         pkt_len = mc.get_pkt_len(p)
         init_win_size = mc.get_init_win_size(p)
-        segment_size = mc.get_segment_size(p, self.blackbox.logger)
+        segment_size = mc.get_segment_size(p, self.blackboard.logger)
 
         row = [
              #-----v needed for NN v---------
              flow_dict['Source_Port'], #__src_port
              flow_dict['Destination_Port'], #__dst_port
              flow_dict['Protocol'], #__protocol
-             timedelta(), #__flow_duration: empty timedelta constructor is 0
+             0., #__flow_duration: empty timedelta constructor is 0
              pkt_len, #__fwd_pkt_len_max: only one value at first, first packet is fwd by default
              pkt_len, #__fwd_pkt_len_min: only one value at first, first packet is fwd by default
              pkt_len, #__fwd_pkt_len_mean: only one value at first, first packet is fwd by default
              0., #__fwd_pkt_len_std: it is the only packet, so 0
              0, #__bwd_pkt_len_min: only one packet by default fwd
              0., #__bwd_pkt_len_mean: only one packet by default fwd
-             nan, #__fwd_IAT_tot: need at least 2 packets to compute interarrival time
+             0., #__fwd_IAT_tot: need at least 2 packets to compute interarrival time
              pkt_len, #__pkt_len_min: only one value at first
              1 if 'RST' in tcp_flags else 0, #__RST_flag_cnt
              1 if 'PSH' in tcp_flags else 0, #__PSH_flag_cnt
@@ -177,8 +173,8 @@ class MetricsThreadContent(Thread):
              #-----^----------------------------------^---------
              #-----v needed for jail table management v---------
              # ----v and metrics computation          v---------
-             nan, #CHECKED
-             nan, #BLOCKED_WHEN
+             'never', #CHECKED
+             'never', #BLOCKED_WHEN
              flow_str, #FLOW
              flow_dict['Source_IP'], #SRC_IP
              flow_dict['Source_Port'], #SRC_PORT
@@ -192,17 +188,17 @@ class MetricsThreadContent(Thread):
              datetime.now() #LAST_PKT_TMS
              #-----^----------------------------------^--------
              ]
-        self.blackbox.jail_table.loc[len(self.blackbox.jail_table)] = row
+        self.blackboard.jail_table.loc[len(self.blackboard.jail_table)] = row
 
-    def update_metrics(self, flow_existing_key: str, idx: int, packet: sc.Packet, layers: list[str], direction: PacketDirection):
+    def __update_metrics(self, flow_existing_key: str, idx: int, packet: sc.Packet, layers: list[str], direction: PacketDirection):
         """A packet is captured, update the corresponding flow information"""
-        old_row = self.blackbox.jail_table.iloc[idx,:]
+        old_row = self.blackboard.jail_table.iloc[idx,:]
 
         pkt_len = mc.get_pkt_len(packet)
         tcp_flags = mc.get_tcp_layer_flags_of_packet(packet, layers)
         updated_fwd_pkt_len_mean = mc.update_fwd_pkt_len_mean(old_row['__fwd_pkt_len_mean'], pkt_len, old_row['PKTS_NUMBER_FWD'], direction)
-        last_pkt_seen_fwd = dt.datetime.now() if direction == PacketDirection.FWD else old_row['LAST_PKT_TMS_FWD']
-        segment_size = mc.get_segment_size(packet, self.blackbox.logger)
+        last_pkt_seen_fwd = datetime.now() if direction == PacketDirection.FWD else old_row['LAST_PKT_TMS_FWD']
+        segment_size = mc.get_segment_size(packet, self.blackboard.logger)
 
         new_row = [
             #-----v needed for NN v---------
@@ -220,7 +216,7 @@ class MetricsThreadContent(Thread):
             mc.update_bwd_pkt_len_min(old_row['__bwd_pkt_len_min'], pkt_len, direction), #__bwd_pkt_len_min
             mc.update_bwd_pkt_len_mean(old_row['__bwd_pkt_len_mean'], pkt_len, old_row['PKTS_NUMBER_BWD'], direction), #__bwd_pkt_len_mean
              
-            mc.update_fwd_IAT_tot(old_row['__fwd_IAT_tot'], dt.datetime.now(), old_row['LAST_PKT_TMS_FWD'], direction), #__fwd_IAT_tot: need at least 2 packets to compute interarrival time
+            mc.update_fwd_IAT_tot(old_row['__fwd_IAT_tot'], datetime.now(), old_row['LAST_PKT_TMS_FWD'], direction), #__fwd_IAT_tot: need at least 2 packets to compute interarrival time
              
             mc.update_pkt_len_min(old_row['__pkt_len_min'], pkt_len), #__pkt_len_min
 
@@ -255,6 +251,6 @@ class MetricsThreadContent(Thread):
             #-----^----------------------------------^---------
             ]
         
-        self.blackbox.jail_table.iloc[idx] = new_row
-        
+        self.blackboard.jail_table.iloc[idx] = new_row
+
 main()
