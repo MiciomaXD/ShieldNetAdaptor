@@ -1,6 +1,7 @@
 # ShieldNet Classic, Neural & Ada: An omni-comprehensive and customizable framework to DoS and malicious traffic detection
 
 <div style="text-align: right">
+Small Project in AI and Cybersecurity<br>
 by Pascoli Massimiliano<br>
 AAU id: 12138922<br>
 e-mail: mapascoli@edu.aau.at<br>
@@ -59,7 +60,7 @@ First of all, what exactly is a Denial of Service (DoS) attack?
 
 As the reader could guess from the name, in its simplest form a DoS attack is a procedure aimed to make a victim unreachable, hence unable to offer its services to legitimate parties or at least degrading performances greatly.
 
-The way this is achieved is by exhausting victim network bandwidth or connection capabilities through bogus requests in a plethora of ways. The taxonomy of DoS and DDoS style attacks (the most common and simple, "Distributed" variant of DoS, with several attack machines and high traffic volumes e.g. [SYN flood](https://en.wikipedia.org/wiki/SYN_flood) technique) is vast and classic statistical methods struggle to keep up. This is happening in a settings where organized attacks reach the overwhelming magnitude of up to 46 millions requests/s on Google Armor for a 2,54 Tbps traffic flow on 1st June 2022, just to cite one example.
+The way this is achieved is by exhausting victim network bandwidth or connection capabilities through bogus requests in a plethora of ways. The taxonomy of DoS and DDoS (the most common and simple, "Distributed" variant of DoS, with several attack machines and high traffic volumes e.g. [SYN flood](https://en.wikipedia.org/wiki/SYN_flood) technique) style attacks is vast and classic statistical methods struggle to keep up. This is happening in a settings where organized attacks reach the overwhelming magnitude of up to 46 millions requests/s on Google Armor for a 2,54 Tbps traffic flow on 1st June 2022, just to cite one example.
 
 To make the situation even more problematic, not all attacks use high traffic volumes and thus are easy to identify, but some of them exploit intrinsic flaws in Internet protocol / applications specifications and implementations (e.g. [Slowloris](https://en.wikipedia.org/wiki/Slowloris_(computer_security)) technique with low traffic volume or using TCP shrinking window and time-out-based retransmission for congestion management as explained [here](http://www.cs.cornell.edu/people/egs/cornellonly/syslunch/spring04/p75-kuzmanovic.pdf)).
 
@@ -91,11 +92,11 @@ To make a quick roundup of related work proposed by other researchers (treated i
 
 - the second, requires the a priori aggregation of Internet flow metrics and then the classification of flow statistics. As examples:
   
-  - [GLD-Net: Deep Learning to Detect DDoS Attack via Topological and Traffic Feature Fusion - PMC](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9398712/) uses GNNs with attention. The model representation of the network is a connected undirected graph, similar to classic methods, where every node is a host. Every edge of the graph contains flow metadata (e.g. bytes/s, number of flags, up and down rate, ...) that can be checked and taken under consideration by the GNN layer to classify every flow between two nodes $\langle n_1, n_2 \rangle$. This approach is particularly interesting because GNN use a representation that is very natural and conceptually easy to read. Furthermore, to classify a flow between $\langle n_1, n_2 \rangle$ with GNNs, also adjacent pair $\langle n_2, n_3 \rangle$ data can be used to obtain a perhaps more accurate classification even if node $n_1$ is not even aware of the existence of $n_3$: this is characteristic of GNNs, context is extrapolated and summarized following a recursive criteria from the neighbourhood of a node up to certain extents and collapsed together with the local data, then a classification is made on the combined metrics.
+  - [GLD-Net: Deep Learning to Detect DDoS Attack via Topological and Traffic Feature Fusion - PMC](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9398712/) uses GNNs with attention. The model representation of the network is a connected undirected graph, similar to classic methods, where every node is a host. Every edge of the graph contains flow metadata (e.g. bytes/s, number of flags, up and down rate, ...) that can be checked and taken under consideration by the GNN layer to classify every flow between two nodes $\langle n_1, n_2 \rangle$. This approach is particularly interesting because GNN use a representation that is very natural and conceptually easy to read. Furthermore, to classify a flow between $\langle n_1, n_2 \rangle$ with GNNs, also adjacent pair data $\langle n_2, n_3 \rangle$ can be used to obtain a, perhaps, more accurate classification, even if node $n_1$ is not even aware of the existence of $n_3$: this is characteristic of GNNs. Context is extrapolated and summarized, up to certain extents, following a recursive criteria from the neighbourhood of a node and, then, collapsed together with the local data; a classification is finally made on the combined metrics.
   
-  - [Improved DDoS Detection Utilizing Deep Neural Networks and Feedforward Neural Networks as Autoencoder](https://www.mdpi.com/1999-5903/14/8/240) make use of powerful autoencoder paradigm to shrink down model size, hence optimizing performance. Starting from a high number of features (a high-dimensional feature space), autoencoders are a great way to shrink down input dimensionality maintaining and selecting useful information to reproduce the input itself starting from the summary. This gives to autoencoders the classic and recognizable hourglass shape. If it is possible to start with simplified input, training of a classifier will be easier and the classifier itself will be smaller in size, boosting efficiency during deployment.
+  - [Improved DDoS Detection Utilizing Deep Neural Networks and Feedforward Neural Networks as Autoencoder](https://www.mdpi.com/1999-5903/14/8/240) makes use of powerful autoencoder paradigm to shrink down model size, hence optimizing performance. Starting from a high number of features (a high-dimensional feature space), autoencoders are a great way to shrink down input dimensionality maintaining and selecting useful information to reproduce the input itself, starting from the summary. This gives to autoencoders the classic and recognizable hourglass shape. If it is possible to start with simplified input, training of a classifier will be easier and the classifier itself will be smaller in size, boosting efficiency during deployment.
   
-  - [Binary classification using SMOTE+LSTM | Kaggle](https://www.kaggle.com/code/rayalizing1/binary-classification-using-smote-lstm). This is an approach task that has potential, followed by a user on Kaggle facing DoS detection. Another dimension that can be considered is, in fact, time. Metadata of a flow changes throughout time; how the change happens between two "snapshots" of a flow can be a distinguishing factor between a malicious or a benign connection. LSTMs are used in this setting to account for the time dimension, consuming the dataset as a series of sequences. In addition, this implementation uses Synthetic Minority Oversampling Technique to generate artificial samples where is needed to rebalance the dataset.
+  - [Binary classification using SMOTE+LSTM | Kaggle](https://www.kaggle.com/code/rayalizing1/binary-classification-using-smote-lstm). This is an approach to the task that has potential, followed by a user on Kaggle facing DoS detection. Another dimension that can be considered is, in fact, time. Metadata of a flow changes throughout time; how the change happens between two "snapshots" of a flow can be a distinguishing factor between a malicious or a benign connection. LSTMs are used in this setting to account for the time dimension, consuming the dataset as a series of sequences. In addition, this implementation uses Synthetic Minority Oversampling Technique to generate artificial samples where is needed to rebalance the dataset.
 
 Every approach listed above is capable of 99+%  accuracy, setting the state-of-the-art standard, reached and in some cases, exceeded, by our, even smaller, model.
 
@@ -113,9 +114,11 @@ In addition to that, we advise to use a virtual environment created with tools l
 
 - [Pandas](https://pandas.pydata.org/docs/getting_started/install.html) and correlated NumPy / SciPy stacks for internal data metrics computation and memorization;
 
-- [Scapy](https://scapy.readthedocs.io/en/latest/index.html) for packet management, decoding, sniffing, analysis.
+- [Scapy](https://scapy.readthedocs.io/en/latest/index.html) for packet management, decoding, sniffing, analysis;
 
-Once that is done, it is sufficient to run
+- [Pickle](https://docs.python.org/3/library/pickle.html) for storage of some components.
+
+Once the installations are done, it is sufficient to run
 
 ```bash
 python3 daemon.py
@@ -149,7 +152,7 @@ All of them offer a great degree of customization. In the diagram is reported an
 
 <img src="file:///E:/tempBig/ShieldNetAdaptor/report/report-sn%20organization.svg" title="" alt="" data-align="center">
 
-The entry point of the whole application is the `main()` function of file `daemon.py`. The function, first, implements a general logger for processes and functions usable globally: the log file will contain useful information regarding the status and possible errors during the computation of *all* components of SN. At this point the boot sequence can begin.
+The entry point of the whole application is the `main()` function of file `daemon.py`. The function, first, implements a general logger for processes and functions usable globally: the log file will contain useful information regarding the status and possible errors during the computation of *all* components of SN. At this point, the boot sequence can begin.
 
 SNC is a static set of customizable firewall rules that are executed in sequence from `iptables` folder files: rules are read and applied to iptables. It is recommended to apply at least the basic set of rules, but the user can choose in `config.py` whatever level of protection he wishes (please refer to the ShieldNet Classic dedicated section), even disable firewall based shield completely.
 
@@ -171,7 +174,7 @@ First of all, rules focus on TCP-based attacks: usually, UDP attacks are [amplif
 
 As stated in the manual for iptables (for our goals security table is ignored):
 
-- the filter table is the default and most commonly used table that rules go to if -t (–table) option is used;
+- the filter table is the default and most commonly used table that rules go to if option -t is used;
 
 - the nat table is used, as the name suggests, for Network Address Translation (NAT). If a packet creates a new connection, the nat table gets checked for rules;
 
@@ -185,21 +188,21 @@ Inside every table there are one or more chains:
 
 - POSTROUTING for packets that leave the network card, available in nat, mangle tables;
 
-- INPUT for packet with this machine as destination (local socket), available in filter, mangle; 
+- INPUT for packets that have this machine as destination (local socket), available in filter, mangle; 
 
-- OUTPUT for packet with this machine as source, generated locally, that depart to other destination in the network, available in filter, mangle tables;
+- OUTPUT for packets that have this machine as source, generated locally, that depart to other destinations in the network, available in filter, mangle tables;
 
 - FORWARD for packets with a destination that is different from this machine, but need routing through this machine, available in filter, mangle tables.
 
 Depending on what kind of packets it is required to mark, modify or block, a table and a supported chain is selected.
 
-Low level chains are the fastest ones and are processed first (first being PREROUTING), but filter table does not support this chain (we need to *filter* traffic...) : raw and mangle do. Unfortunately, raw table does not support some functionalities needed for SNC (e.g. TCP header marking), so mangle table is the best choice.
+Low level chains are the fastest ones and are processed first (first being PREROUTING of raw table), but filter table does not support this chain (we need to *filter* traffic...) : raw and mangle do. Unfortunately, raw table does not support some functionalities needed for SNC (e.g. TCP header marking), so mangle table is the best choice.
 
-It is recommended to check out SNC rule set files because are rich in comments that explain what each rule does (see image on the left).
+It is recommended to check out SNC rule set files because are rich in comments that explain what each rule does.
 
 A last note on synproxy rules. Synproxy requires Linux kernel version 3.12 or above, iptables from version 1.4.21 up and custom kernel settings provided with SN.
 
-Synproxy is an internal module of iptables that checks if a sender of a SYN packet establishes the connection for real or does nothing. It is capable to discard packets with minimal performance impact (multiple millions packets/s SYNflood attacks). To explain how it works in this setting we provide a fragment of `iptables\og_iptables_rules_synproxy.txt`:
+Synproxy is an internal module of iptables that checks if a sender of a SYN packet establishes the connection for real or does nothing. It is capable to discard packets with minimal performance impact (designed for multiple millions packets/s SYNflood attacks). To explain how it works in this setting we provide a fragment of `iptables\og_iptables_rules_synproxy.txt`:
 
 ```bash
 #excludes syn packets from connection tracking, otherwise too many resources wasted (target CT is conntrack)
@@ -239,9 +242,9 @@ Starting from a register configuration, containing data computed from every past
 
 3. the packet belongs to a never encountered flow
 
-Case 3 is the case that defines flow direction, in fact a packet that does not fit in other flows (a new flow must be created) is automatically considered a forward packet: this translates into $IP_1$ and $Port_1$ being the source IP address and source port, $IP_2$ and $Port_2$ the destination values respectively as are found in the IP payload fields of the packet itself.
+Case 3 is the case that defines flow direction, in fact a packet that does not fit in other flows (a new flow must be created) is automatically considered as a forward packet: this translates into $IP_1$ and $Port_1$ being the source IP address and source port, $IP_2$ and $Port_2$ the destination values respectively, as are found in the IP payload fields of the packet itself.
 
-Case 2 happens when a packet has the roles of $IP_1$, $Port_1$ and $IP_2$, $Port_2$ exchanged. Instead of writing a new flow in the register $\langle IP_2, IP_1, Port_2, Port_1, Protocol \rangle$, it is checked if the inverse flow id is already present. This let us know that the flow exists, but the first packet encountered had the other direction (thus the current is a backward packet, only backward metrics will be updated).
+Case 2 happens when a packet has the roles of $IP_1$, $Port_1$ and $IP_2$, $Port_2$ exchanged. Instead of writing a new flow in the register $\langle IP_2, IP_1, Port_2, Port_1, Protocol \rangle$, it is checked if the inverse flow id is already present. This let us know that the flow exists, but the first packet encountered had the other direction (thus the current is a backward packet; only backward metrics will be updated).
 
 Updating of the 20 numerical flow feature is fortunately easy: in the majority of them a sum, minimum or maximum are sufficient. The not trivial task is to update average and standard deviation having one new packet (which is directional) and the old value of average and standard deviation. This is feasible, after some rewriting of classic formulae, one can obtain:
 
@@ -294,7 +297,38 @@ $$
 
 Model name: `.\models\12-21-2022_15-54-25__anova_binary_opt_sched.model`
 
-- dataset [DDoS Dataset | Kaggle](https://www.kaggle.com/datasets/devendra416/ddos-datasets) (`ddos_balanced/final_dataset.csv` only) with around 80 flow features, reduced to 20 using ANOVA F-value test (were kept the best 20 scores);
+- dataset [DDoS Dataset | Kaggle](https://www.kaggle.com/datasets/devendra416/ddos-datasets) (`ddos_balanced/final_dataset.csv` only) with around 80 flow features, reduced to 20 using ANOVA F-value test (were kept the best 20 scores), ANOVA is computed as shown below;
+
+$$
+F\_score = \frac{\text{variation between sample means (MSB)}}{\text{variation within the samples (MSW)}} \\[1cm]
+
+MSB = \frac{\text{Sum of squares between the group (SSB)}}{DFb} \\
+
+\text{where } \\
+
+SSB = \sum{(X_i – X_t)^2} \text{ with } X_i \text{ mean of group } i \text{ and } X_t \text{ mean of all} \\
+\text{ the observations}\\
+
+DFb = \text{ degrees of freedom between} = \text{ total number of} \\
+\text{ observations in all the groups } – 1 \\[1cm]
+
+MSW = \frac{\text{Sum of squares within the group (SSW)}}{DFw} \\
+
+\text{where} \\
+
+DFw = \text{ degrees of freedom within} = N – K \\
+
+\text{ with } K \text{ number of groups and } N \text{ total number of observations}\\
+\text{ in all the groups} \\
+
+SSW = \sum{(X_{i,j} – X_j)^2} \text{ with } X_{i,j} \text{ is the observation of each group } j \\[1cm]
+
+\text{NOTE: An observation is not a sample of the dataset: 1 
+dataset row} \\
+\text{with q features has q observations! So } N \\
+\text{ is number of samples} * \text{number of features (groups) and } \\
+K \text{ is number of features}
+$$
 
 - batch size = 100;
 
@@ -308,7 +342,8 @@ Model name: `.\models\12-21-2022_15-54-25__anova_binary_opt_sched.model`
   
   $$
   L_{cross-entropy}=-\sum_{i=1}^{n}{t_i \cdot \log(p_i)} \\
-\text{where } t_i \text{ is the ground truth label, } n \text{ number of classes and } p_i \text{ is the softmax probability for the } i^{th} \text{ class}
+\text{where } t_i \text{ is the ground truth label, } n \text{ number of classes and } p_i \\
+\text{ is the softmax probability for the } i^{th} \text{ class}
   $$
 
 - learning rate optimizer `StepLR` with step_size = 10, gamma = 0.1;
@@ -345,7 +380,7 @@ As done for SNA, below is reported the flow diagram that explains what SNN does 
 
 Deciding when to classify a flow, when a flow is old and handling of potentially conflicting classification outcomes from the neural model for the same flow in different moments is difficult. Depending on application cases, different heuristics can change the structure of SNN completely.
 
-For this first version of SN we adopted these rudimental and general heuristics:
+For this first version of SN we adopted these rudimentary and general heuristics:
 
 - old flow: a flow checked at least once and, if it was blocked, it stayed blocked more than JAIL_TIME_SEC ago, else it is older than OLD_AFTER_SEC (last packet seen timestamp);
 
@@ -355,9 +390,11 @@ For this first version of SN we adopted these rudimental and general heuristics:
 
 ## Results and future steps
 
-In this project we explored the possibilities of DoS detection and mitigation, realizing a working framework that would allow, not only big corporations, but also common network users like *we* are in the first place, to defend our online projects against this and other cyberthreats. All of this, at a low price.
+After 10 hours of testing on real internet traffic on our VPS server, over 5000 different flows were registered and processed. Out of them, 129 were classified as malign. These 129 flows were probably not DoS, since everything was working well during the period. 5000 flows in 10 hours are not many, but we consider the main goals of this proof of concept project reached, nonetheless.
 
-One issue with neural networks is that they always classify something wrong, no matter the performances on the test set, since they deal with probabilities: this is due to the fact that training data is partial data, in fact it does not (and would be impossible to) include all possible samples. The misclassification of a connection has repercussions also on ethical and legal sectors of computing. What happens if a connection to a critical service (e.g. an hospital service) was not possible because SN classifies the flow of packets wrongly? Consequences could be surely devastating.
+In this project we explored the possibilities of DoS detection and mitigation, realizing a working framework that would allow, not only big corporations, but also common network users like *we* are in the first place, to defend our online projects against this and other cyberthreats. We also showed that, at least local, DoS protection is feasible at a low price.
+
+One issue with neural networks is that they always classify something wrong (as seen in 10 hours of real world testing time), no matter the performances on the test set, since they deal with probabilities: this is due to the fact that training data is partial data, in fact it does not (and would be impossible to) include all possible samples. The misclassification of a connection has repercussions also on ethical and legal sectors of computing. What happens if a connection to a critical service (e.g. an hospital service) was not possible because SN classifies the flow of packets wrongly? Consequences could be surely devastating.
 
 The project is far from complete! Our future steps include:
 
