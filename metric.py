@@ -11,13 +11,13 @@ import metrics_computation as mc
 from config import APP_NAME_CORE
 import pickle
 
-def main():
+"""def main():
     logger = set_up_logger('./log.txt')
     #logger.reset()
     stop_event = Event()
     go=MetricsThreadContent(blackboard=BlackBoardStorage(logger = logger), stop_e = stop_event)
     go.start()
-    go.join()
+    go.join()"""
 
 class MetricsThreadContent(Thread):
     """Runnable to be sure the MetricsRegister thread can work flawlessly and self-contained, just
@@ -31,12 +31,14 @@ class MetricsThreadContent(Thread):
     
     def listen(self, stop_event: Event):
         """Called by starting the thread, updates jails-table/register every packet that arrives"""
-        count=0 #! TEST correctness
-        for packet in sc.sniff(offline='.\\test\\test.pcap'): #! TEST correctness
-        #for packet in sc.sniff(count=10):
+        
+        #count=0 #! TEST correctness
+        #for packet in sc.sniff(offline='.\\test\\test.pcap'): #! TEST correctness
+
+        for packet in sc.sniff():
             try:
-                count+=1 #! TEST correctness
-                if count % 10000 == 0: print(count) #! TEST correctness
+                #count+=1 #! TEST correctness
+                #if count % 10000 == 0: print(count) #! TEST correctness
 
                 #todo if exceptions log everything but continue
                 if stop_event.is_set(): #stop event is telling me to shutdown
@@ -69,9 +71,9 @@ class MetricsThreadContent(Thread):
             except Exception as e:
                 self.blackboard.logger.log('Unable to process packet:\n' + packet.show(dump=True) + 'Exception was:' + str(e), Level.ERROR, APP_NAME_CORE + '_metrics')
         
-        self.blackboard.jail_table.to_csv(".\\test\\test_generated.csv", header=True, index=False, mode='w') #! TEST correctness
-        with open('.\\test\\test_generated.pkl', 'wb') as handle: #! TEST correctness
-            pickle.dump(self.blackboard.jail_table, handle) #! TEST correctness
+        #self.blackboard.jail_table.to_csv(".\\test\\test_generated.csv", header=True, index=False, mode='w') #! TEST correctness
+        #with open('.\\test\\test_generated.pkl', 'wb') as handle: #! TEST correctness
+            #pickle.dump(self.blackboard.jail_table, handle) #! TEST correctness
 
     def __is_valid(self, p: sc.Packet):
         """Excludes non TCP or UDP packets (non TCP/UDP can be handled vanilla with iptables)"""
@@ -253,4 +255,4 @@ class MetricsThreadContent(Thread):
         
         self.blackboard.jail_table.iloc[idx] = new_row
 
-main()
+#main()

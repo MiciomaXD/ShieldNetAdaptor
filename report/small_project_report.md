@@ -9,7 +9,7 @@ date: 10/03/2023<br><br>
 
 ## Outline
 
-This project started as a proof of concept application and ended as a complete framework to deal with DoS and malicious traffic detection coming from external sources. The framework unifies two paradigms: a classical local way with *iptable* firewall management and a more modern deep learning approach. It is highly customizable; it was originally thought as a double layer DoS traffic filter, but can be easily extended to other problematics: this requires a new deep learning model, possibly with other metrics to compute; although the infrastructure in place remains the same. The utility can be applied, and is not limited to, end hosts or routers.
+This project started as a proof of concept application and ended as a complete framework to deal with DoS and malicious traffic detection coming from external sources. The framework unifies two paradigms: a classical local way with *iptables* firewall management and a more modern deep learning approach. It is highly customizable; it was originally thought as a double layer DoS traffic filter, but can be easily extended to other problematics: this requires a new deep learning model, possibly with other metrics to compute; although the infrastructure in place remains the same. The utility can be applied, and is not limited to, end hosts or routers.
 
 The source code, as well as complementary material, is publicly available on our GitHub repository: [MiciomaXD/ShieldNetAdaptor](https://github.com/MiciomaXD/ShieldNetAdaptor).
 
@@ -43,11 +43,11 @@ This is the case of Denial of Service (DoS) style attacks that were the main rea
 
 The double-layer defence by SN to be effective should be installed on routers, as upstream as possible to DoS traffic sources. Check the explanatory diagram below in this regard.
 
-![](E:\tempBig\ShieldNetAdaptor\report\example1.svg)
+<img src="file:///E:/tempBig/ShieldNetAdaptor/report/example1.svg" title="" alt="" data-align="center">
 
-![](E:\tempBig\ShieldNetAdaptor\report\example2.svg)
+<img src="file:///E:/tempBig/ShieldNetAdaptor/report/example2.svg" title="" alt="" data-align="center">
 
-![](E:\tempBig\ShieldNetAdaptor\report\example3.svg)
+<img src="file:///E:/tempBig/ShieldNetAdaptor/report/example3.svg" title="" alt="" data-align="center">
 
 In this paper we will cover briefly the realization of the deep learning model, since it is already presented in detail in our other work available at [GitHub - MiciomaXD/MacLea_DeepLea_Project_Klagenfurt](https://github.com/MiciomaXD/MacLea_DeepLea_Project_Klagenfurt). Please, for a detailed reading regarding ShieldNet Neural (SNN) check proposal, presentation and final report produced in the scope of Alpen-Adria-Universität Klagenfurt course "Machine Learning and Deep Learning (650.025)" by professor [Schekotihin Konstantin](https://www.aau.at/team/schekotihin-konstantin/) - semester 22W. This is because the core part of SNN is one of the many models produced in that setting.
 
@@ -139,23 +139,225 @@ Please, note that upon stop command execution, iptables will be reset to the sit
 
 SN is composed by three major components:
 
-1. ShieldNet Classic;
+1. ShieldNet Classic - SNC;
 
-2. ShieldNet Ada;
+2. ShieldNet Ada (or Metrics) - SNA;
 
-3. ShieldNet Neural
+3. ShieldNet Neural - SNN
 
-All of them are entirely customizable and function on separate threads.
+All of them offer a great degree of customization. In the diagram is reported an overview of the organization of these three fundamental components.
+
+<img src="file:///E:/tempBig/ShieldNetAdaptor/report/report-sn%20organization.svg" title="" alt="" data-align="center">
+
+The entry point of the whole application is the `main()` function of file `daemon.py`. The function, first, implements a general logger for processes and functions usable globally: the log file will contain useful information regarding the status and possible errors during the computation of *all* components of SN. At this point the boot sequence can begin.
+
+SNC is a static set of customizable firewall rules that are executed in sequence from `iptables` folder files: rules are read and applied to iptables. It is recommended to apply at least the basic set of rules, but the user can choose in `config.py` whatever level of protection he wishes (please refer to the ShieldNet Classic dedicated section), even disable firewall based shield completely.
+
+After the implementation of SNC the object that represents the shared memory for the other threads is instantiated and sub-processes belonging to SNA and SNN are started. The defence is now up and running. In particular, SNA captures all packets that the network card of the machine encounters and computes flow metrics that will be needed by SNN for classification of every flow. SNN deals with the Pytorch neural network to classify flows and blocks malicious traffic. SNN also has the job to maintain a clean register table: delete too old flow data, update register in case a flow is currently blocked, decide what flow is suitable for a classification, ...
+
+Since SN should be an interactive application, the `main()` function, after booting, has to listen for requests from a user that can execute a command in any moment (e.g. `stop`). This is done via reading one-way FIFO pipes. The file `command_interface.py` is responsible for delivering command requests to the input FIFO pipe, so that `main()` can receive, execute them and respond on an output FIFO pipe with the results.
 
 ## ShieldNet Classic: classic vanilla defence and firewall connections management
 
-We were attacked udpflood managed no downtime around 1Gbps
+Together with SN code, three set of iptables rules are provided (basic, optional and highly specialized synproxy sets). SN also comes with optimized kernel settings that are mandatory for use with synproxy due to how the packets are marked.
+
+Basic and optional rules *are* field tested, and they are a results of common setups available publicly and personal experience (we were attacked in the past with unorganized DDoS SYN-ACK at around 1Gbps - these rules were enough, locally, to defend and make the attack ineffective). The kernel settings provided are optimized for our [Contabo VPS](https://contabo.com/en/locations/europe/?utm_source=google&utm_medium=cpc&utm_campaign=brand&gclid=CjwKCAiAu5agBhBzEiwAdiR5tMYt649wIn7cU-z0bCS7S9_tYGXI__FsDeD6d4Fs8ASUUwDVq0b_YRoCxt0QAvD_BwE), victim of the attack mentioned, but should work for the majority of UbuntuServer distributions.
+
+Below, is reported the diagram that shows iptables structure. It is, perhaps, interesting to the reader to know what is our logic behind rule placement, since there are many options available (tables raw, mangle, nat, filter, security).
+
+<img src="file:///E:/tempBig/ShieldNetAdaptor/report/FW-IDS-iptables-Flowchart-v2019-04-30-1.png" title="" alt="" data-align="center">
+
+First of all, rules focus on TCP-based attacks: usually, UDP attacks are [amplified reflection attacks](https://www.csoonline.com/article/3629476/what-is-a-reflection-amplification-ddos-attack.html) (i.e. the attacker uses IP of the victim to forge false requests that appear to originate from the victim and sends them to many other servers, that respond to the victim amplifying the traffic volume) that, due to the high volume, are not manageable locally (to prevent that, scenario 3 of the introduction would be needed, or a DDoS protected network e.g. [Cloudflare](https://www.cloudflare.com/it-it/)).
+
+As stated in the manual for iptables (for our goals security table is ignored):
+
+- the filter table is the default and most commonly used table that rules go to if -t (–table) option is used;
+
+- the nat table is used, as the name suggests, for Network Address Translation (NAT). If a packet creates a new connection, the nat table gets checked for rules;
+
+- the mangle table is used to modify or mark packets and their header information;
+
+- the raw table purpose is mainly to exclude certain packets from connection tracking using NOTRACK target (-j option).
+
+Inside every table there are one or more chains:
+
+- PREROUNTING for packets that arrive to the network card, available in raw, nat, mangle tables;
+
+- POSTROUTING for packets that leave the network card, available in nat, mangle tables;
+
+- INPUT for packet with this machine as destination (local socket), available in filter, mangle; 
+
+- OUTPUT for packet with this machine as source, generated locally, that depart to other destination in the network, available in filter, mangle tables;
+
+- FORWARD for packets with a destination that is different from this machine, but need routing through this machine, available in filter, mangle tables.
+
+Depending on what kind of packets it is required to mark, modify or block, a table and a supported chain is selected.
+
+Low level chains are the fastest ones and are processed first (first being PREROUTING), but filter table does not support this chain (we need to *filter* traffic...) : raw and mangle do. Unfortunately, raw table does not support some functionalities needed for SNC (e.g. TCP header marking), so mangle table is the best choice.
+
+It is recommended to check out SNC rule set files because are rich in comments that explain what each rule does (see image on the left).
+
+A last note on synproxy rules. Synproxy requires Linux kernel version 3.12 or above, iptables from version 1.4.21 up and custom kernel settings provided with SN.
+
+Synproxy is an internal module of iptables that checks if a sender of a SYN packet establishes the connection for real or does nothing. It is capable to discard packets with minimal performance impact (multiple millions packets/s SYNflood attacks). To explain how it works in this setting we provide a fragment of `iptables\og_iptables_rules_synproxy.txt`:
+
+```bash
+#excludes syn packets from connection tracking, otherwise too many resources wasted (target CT is conntrack)
+iptables -t raw -A ShieldNet -p tcp -m tcp --syn -j CT --notrack
+
+#matches the syn packets (untracked as per previous rule) and ack packets (invalid as per 
+#nf_conntrack_tcp_loose=0 kernel settings) and forwards them to the synproxy target, which 
+#then verifies the syncookies and establishes 
+#the full TCP connections
+iptables -t filter -A ShieldNet -p tcp -m tcp -m conntrack --ctstate INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 
+
+#drops every packet that the previous rule didn't catch
+iptables -t filter -A ShieldNet -m conntrack --ctstate INVALID -j DROP
+```
+
+where chain `ShieldNet` is a custom chain created by SNC that is inserted into PREROUTING of table raw and filter. We can use filter table because we exclude SYN packets from connection tracking and mark ACK packets as invalid (kernel custom setting) to spare some resources. Then redirect packets with states (option --ctstate) INVALID/UNTRACKED to target SYNPROXY efficient chain, instead of PREROUTING one (the latter not supported by filter table).
 
 ## ShieldNet Neural and ShieldNet Ada: deep learning with built-in metrics computation and firewall connections management
 
+To our knowledge, at the time writing this paper, the literature is very well documented and rich in traffic flow classification starting from offline data, but lacks real-time examples. The prerequisite of SN *is* to work in real-time, this means it was necessary to overcome some technical difficulties in the computation of the aggregated *flow* metrics (one flow = several packets) on which SNN works on, knowing only one new packet at every instant.
+
+### ShieldNet Ada
+
+SNA is the segment of SN that makes sure SNN has correct data to classify at every moment. The model, discussed in the next section, needs 20 numerical flow features in order to classify traffic.
+
+Below, is reported the flow diagram that explains how SNA self-clocks itself using every captured packet:
+
+<img title="" src="file:///E:/tempBig/ShieldNetAdaptor/report/report-sna.svg" alt="" data-align="center">
+
+To understand the next paragraph, it is necessary to introduce a proper definition for the flow id. The flow id, mathematically, is an ordered tuple formed by $\langle IP_1, IP_1, Port_1, Port_2, Protocol \rangle$. Programmatically, it was treated as a string formed by the concatenation of all tuple components interleaved with a dash.
+
+Starting from a register configuration, containing data computed from every past packet there are three cases that can happen when a valid (UDP or TCP packet) is captured:
+
+1. the *forward* flow id exists already in the register
+
+2. the *backward* flow id exists already in the register
+
+3. the packet belongs to a never encountered flow
+
+Case 3 is the case that defines flow direction, in fact a packet that does not fit in other flows (a new flow must be created) is automatically considered a forward packet: this translates into $IP_1$ and $Port_1$ being the source IP address and source port, $IP_2$ and $Port_2$ the destination values respectively as are found in the IP payload fields of the packet itself.
+
+Case 2 happens when a packet has the roles of $IP_1$, $Port_1$ and $IP_2$, $Port_2$ exchanged. Instead of writing a new flow in the register $\langle IP_2, IP_1, Port_2, Port_1, Protocol \rangle$, it is checked if the inverse flow id is already present. This let us know that the flow exists, but the first packet encountered had the other direction (thus the current is a backward packet, only backward metrics will be updated).
+
+Updating of the 20 numerical flow feature is fortunately easy: in the majority of them a sum, minimum or maximum are sufficient. The not trivial task is to update average and standard deviation having one new packet (which is directional) and the old value of average and standard deviation. This is feasible, after some rewriting of classic formulae, one can obtain:
+
+$$
+\text{Classical average computation} \\
+\overline{X}_n = \frac{1}{n}\sum_{i=1}^{n}x_i \\[0.2cm]
+
+\text{One-pass recursive calculation} \\
+\begin{cases}
+    \overline{X}_{0} = 0 \\
+    \overline{X}_{n+1} = \frac{\overline{X}_n \cdot 
+n +x_{n+1}}{n+1}
+\end{cases}
+$$
+
+$$
+\text{Classical population standard deviation computation} \\
+\sigma_n = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (x_i - \overline{X}_n)^2} \\[0.2cm]
+
+\text{One-pass recursive calculation} \\
+\begin{cases}
+    \sigma_0 = 0 \\
+    \sigma_{n+1} = \sqrt{\frac{n}{n+1} \cdot 
+\sigma_n^2 + \frac{1}{n} \cdot (x_{n+1} - 
+\overline{X}_{n+1})^2}
+\end{cases}
+$$
+
+### ShieldNet Neural
+
+The neural network model used in this first version of SN was produced in the aforementioned complementary work. In the following, are provided only some key features of the model so that the reader can understand how such neural network was trained, what shape it has, on what kind of data was trained on.
+
+---
+
+<u>**Model shape**</u>
+
+<img title="" src="file:///E:/tempBig/ShieldNetAdaptor/report/report-snn%20model.svg" alt="" data-align="center">
+
+In the image above is shown the shape of the model. It is a sequence of linear layers, interleaved by activation functions Rectified Linear Units (ReLU) and hyperbolic Tangent (Tanh) with logarithmic Softmax at the end. Logarithmic Softmax or LogSoftmax is numerically more stable than the non-logarithmic counterpart and is defined as:
+
+$$
+LogSoftmax(x_i)=\log \left( \frac{e^{x_i}}{\sum_j^n e^{x_j}} \right) \\
+\text{where } x_i \text{ and } x_j \text{ are components of an 
+n-dimensional tensor}
+$$
+
+(Log)Softmax is useful in classification problems to obtain a probability distribution over the classes.
+
+<u>**Summary of training settings and hyperparameters**</u>
+
+Model name: `.\models\12-21-2022_15-54-25__anova_binary_opt_sched.model`
+
+- dataset [DDoS Dataset | Kaggle](https://www.kaggle.com/datasets/devendra416/ddos-datasets) (`ddos_balanced/final_dataset.csv` only) with around 80 flow features, reduced to 20 using ANOVA F-value test (were kept the best 20 scores);
+
+- batch size = 100;
+
+- `torch.nn.init.xavier_uniform_` weight initialization;
+
+- 50 epochs;
+
+- learning rate = 0.001;
+
+- *Adam* optimizer with *CrossEntropyLoss* defined as below; 
+  
+  $$
+  L_{cross-entropy}=-\sum_{i=1}^{n}{t_i \cdot \log(p_i)} \\
+\text{where } t_i \text{ is the ground truth label, } n \text{ number of classes and } p_i \text{ is the softmax probability for the } i^{th} \text{ class}
+  $$
+
+- learning rate optimizer `StepLR` with step_size = 10, gamma = 0.1;
+
+- a rudimentary early stopping mechanism
+
+<u>**Performance on test set**</u>
+
+```
+Precision:  tensor(0.9995)
+Recall:  tensor(0.9984)
+F1-score:  tensor(0.9989)
+Overall Accuracy:  tensor(0.9989)
+Per class accuracy:  [Benign 0.9994804904170463, DoS 0.998358450377156]
+```
+
+<u>**Other information**</u>
+
+A standard scaler defined as shown below was fit on training input data and then used first on training data, then on the test set.
+
+$$
+\forall i,j \left(x\_scaled_{i,j} = \frac{x\_original_{i,j} - 
+\mu_i}{\sigma_i} \right) \\
+\text{where } i \text{ is a feature and } j \text{ is a sample}
+$$
+
+The scaler was saved after fitting as a pickle dump, so that SN can reload it. Before classifying a flow, all 20 features are rescaled accordingly using the same scaler.
+
+---
+
+As done for SNA, below is reported the flow diagram that explains what SNN does in order to classify internet flows present in the registers.
+
+<img src="file:///E:/tempBig/ShieldNetAdaptor/report/report-snn.svg" title="" alt="" data-align="center">
+
+Deciding when to classify a flow, when a flow is old and handling of potentially conflicting classification outcomes from the neural model for the same flow in different moments is difficult. Depending on application cases, different heuristics can change the structure of SNN completely.
+
+For this first version of SN we adopted these rudimental and general heuristics:
+
+- old flow: a flow checked at least once and, if it was blocked, it stayed blocked more than JAIL_TIME_SEC ago, else it is older than OLD_AFTER_SEC (last packet seen timestamp);
+
+- classifiable flow: a flow that was never blocked and at least 20 forward packets were captured for that flow, a flow never checked or checked more than t_delta_react time ago;
+
+- if, at any time, a flow is detected as DoS, the source IP address remains blocked for `JAIL_TIME_SEC` and will never be classified again.
+
 ## Results and future steps
 
-In this project we explored the possibilities of DoS detection and mitigation, realizing a working framework that would allow, not only big corporations, but also common network users like *we* are in the first place, to defend our online projects against this and other cyberthreats. All of this, at a low price. 
+In this project we explored the possibilities of DoS detection and mitigation, realizing a working framework that would allow, not only big corporations, but also common network users like *we* are in the first place, to defend our online projects against this and other cyberthreats. All of this, at a low price.
+
+One issue with neural networks is that they always classify something wrong, no matter the performances on the test set, since they deal with probabilities: this is due to the fact that training data is partial data, in fact it does not (and would be impossible to) include all possible samples. The misclassification of a connection has repercussions also on ethical and legal sectors of computing. What happens if a connection to a critical service (e.g. an hospital service) was not possible because SN classifies the flow of packets wrongly? Consequences could be surely devastating.
 
 The project is far from complete! Our future steps include:
 
@@ -163,12 +365,14 @@ The project is far from complete! Our future steps include:
 
 - polishing of python code, making it extendible, more comprehensible and portable, so that the utility is easily installed and simply works well;
 
+- more accurate heuristics for when to classify a flow, when a flow becomes old and what to do in case of potentially conflicting classification outcomes from the neural model for the same flow id in different moments;
+
 - porting of SN to other, more efficient, programming languages (maybe C language): this is not only to gain from the performance point of view, but also to make SN installable in a capillary manner on every network node in order to make the protection effective (see the 3 scenario diagrams at the beginning);
 
 - testing in a real world environment, with more diverse data and attacks;
 
-- extensions of SNN core to detection of other non primarily DoS attacks (e.g. brute forcing, infiltration attemps, ...).
+- extensions of SNN core to detection of other, non primarily DoS attacks (e.g. brute forcing, infiltration attempts, ...).
 
-Traditional methods remains, and services as [Cloudflare](https://www.cloudflare.com/it-it/) offers (although not for free) already a great protection against DoS, but we hope this project is a starting point or at least inspiring to those who want to expand on the topics presented.
+Traditional methods remains, and services as Cloudflare offers (although not for free) already a great protection against DoS, but we hope this project is a starting point or at least inspiring to those who want to expand on the topics presented.
 
 Finally, we would like to thank professor Schekotihin Konstantin for the useful advices provided during the creation of ShieldNet Neural.

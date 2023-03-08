@@ -17,12 +17,12 @@ import re
 
 import os
 
-def main():
+"""def main():
     logger = set_up_logger('./log.txt')
     stop_event = Event()
     go=NeuralThreadContent(blackboard=BlackBoardStorageTest(logger=logger, jail_t='.\\test\\test_generated.pkl'), stop_e = stop_event)
     go.start()
-    go.join()
+    go.join()"""
 
 class NeuralThreadContent(Thread):
     """Runnable to be sure the MetricsRegister thread can work flawlessly and self-contained, just
@@ -139,4 +139,4 @@ class NeuralThreadContent(Thread):
         """Blocks an ip"""
         os.system('iptables -t raw -A ShieldNetJail -s {0} -j DROP'.format(ip))
 
-main()
+#main()
